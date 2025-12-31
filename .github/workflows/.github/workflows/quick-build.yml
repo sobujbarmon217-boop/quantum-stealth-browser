@@ -1,0 +1,110 @@
+name: Quantum Stealth Quick Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Download Chromium
+      run: |
+        echo "Downloading Chromium..."
+        wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        echo "Extracting..."
+        dpkg-deb -x google-chrome-stable_current_amd64.deb chromium-extracted
+        ls -la chromium-extracted/
+        
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y imagemagick patchelf binutils
+        
+    - name: Apply branding patches
+      run: |
+        cd chromium-extracted/opt/google/chrome
+        
+        echo "Replacing text in files..."
+        # Replace text in readable files
+        find . -type f -name "*.pak" -o -name "*.json" | while read file; do
+          sed -i 's/Google Chrome/Quantum Stealth/g' "$file" 2>/dev/null || true
+          sed -i 's/Chromium/Quantum Stealth/g' "$file" 2>/dev/null || true
+        done
+        
+        echo "Branding applied!"
+        
+    - name: Replace icons
+      run: |
+        cd chromium-extracted/opt/google/chrome
+        
+        # Copy logos if they exist
+        if [ -f "../../../../../branding/logos/product_logo_128.png" ]; then
+          cp ../../../../../branding/logos/product_logo_*.png . 2>/dev/null || true
+          echo "Logos copied"
+        else
+          echo "No custom logos found, using defaults"
+        fi
+        
+    - name: Create launcher script
+      run: |
+        cat > chromium-extracted/quantum-stealth.sh << 'EOF'
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export CHROME_WRAPPER="$SCRIPT_DIR/opt/google/chrome/chrome"
+exec "$CHROME_WRAPPER" "$@"
+EOF
+        chmod +x chromium-extracted/quantum-stealth.sh
+        
+    - name: Package browser
+      run: |
+        mv chromium-extracted quantum-stealth-browser
+        tar -czf quantum-stealth-linux-x64.tar.gz quantum-stealth-browser/
+        
+        echo "Package created:"
+        ls -lh quantum-stealth-linux-x64.tar.gz
+        
+    - name: Generate installation guide
+      run: |
+        cat > INSTALL.txt << 'EOF'
+# Quantum Stealth Browser - Installation Guide
+
+## Installation:
+
+1. Extract the archive:
+   tar -xzf quantum-stealth-linux-x64.tar.gz
+
+2. Run the browser:
+   cd quantum-stealth-browser
+   ./quantum-stealth.sh
+
+## First Launch:
+
+The browser will start with Quantum Stealth branding.
+
+## Requirements:
+- Ubuntu/Debian based Linux
+- 64-bit system
+
+## Support:
+https://github.com/sobujbarmon217-boop/quantum-stealth-browser
+EOF
+        
+    - name: Upload browser artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: quantum-stealth-browser-linux-x64
+        path: quantum-stealth-linux-x64.tar.gz
+        retention-days: 30
+        
+    - name: Upload installation guide
+      uses: actions/upload-artifact@v4
+      with:
+        name: installation-guide
+        path: INSTALL.txt
