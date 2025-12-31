@@ -1,0 +1,111 @@
+diff --git a/third_party/blink/renderer/core/frame/navigator.idl b/third_party/blink/renderer/core/frame/navigator.idl
+index 6789012..fghijkl 100644
+--- a/third_party/blink/renderer/core/frame/navigator.idl
++++ b/third_party/blink/renderer/core/frame/navigator.idl
+@@ -30,7 +30,9 @@ interface Navigator {
+     readonly attribute DOMString platform;
+     readonly attribute DOMString product;
+     
+-    readonly attribute boolean webdriver;
++    // QUANTUM PATCH: Remove webdriver attribute entirely
++    // This is even better than returning false
++    // readonly attribute boolean webdriver;
+     
+     // Plugins
+     readonly attribute PluginArray plugins;
+@@ -45,6 +47,10 @@ interface Navigator {
+     readonly attribute unsigned long long deviceMemory;
+     readonly attribute unsigned long hardwareConcurrency;
+     
++    // QUANTUM PATCH: Add hook for fingerprint injection
++    // This allows runtime fingerprint modification via CDP
++    [RuntimeEnabled=QuantumFingerprint] void setFingerprint(QuantumFingerprintParams params);
++    
+     // Permissions
+     readonly attribute Permissions permissions;
+ };
+
+diff --git a/third_party/blink/renderer/modules/canvas/canvas_rendering_context_2d.cc b/third_party/blink/renderer/modules/canvas/canvas_rendering_context_2d.cc
+index 7890123..ghijklm 100644
+--- a/third_party/blink/renderer/modules/canvas/canvas_rendering_context_2d.cc
++++ b/third_party/blink/renderer/modules/canvas/canvas_rendering_context_2d.cc
+@@ -500,6 +500,32 @@ ImageData* CanvasRenderingContext2D::getImageData(
+     return nullptr;
+   }
+   
++  // QUANTUM PATCH: Add canvas noise for fingerprint resistance
++  // This adds deterministic noise based on session seed
++  SkBitmap bitmap = snapshot->asLegacyBitmap();
++  uint32_t seed = GetQuantumSessionSeed();
++  
++  if (seed != 0) {
++    // Apply noise to each pixel
++    for (int y = sy; y < sy + sh; y++) {
++      for (int x = sx; x < sx + sw; x++) {
++        SkColor pixel = bitmap.getColor(x, y);
++        
++        // Generate deterministic noise (0-2 per channel)
++        uint32_t pixel_seed = seed ^ (x * 7919 + y * 7907);
++        uint8_t r_noise = (pixel_seed >> 0) % 3;
++        uint8_t g_noise = (pixel_seed >> 8) % 3;
++        uint8_t b_noise = (pixel_seed >> 16) % 3;
++        
++        // Apply noise
++        pixel = SkColorSetARGB(
++          SkColorGetA(pixel),
++          std::min(255, SkColorGetR(pixel) + r_noise),
++          std::min(255, SkColorGetG(pixel) + g_noise),
++          std::min(255, SkColorGetB(pixel) + b_noise)
++        );
++        bitmap.setColor(x, y, pixel);
++      }
++    }
++  }
++  
+   return MakeGarbageCollected<ImageData>(
+       IntSize(sw, sh),
+       NotShared<DOMUint8ClampedArray>(data));
+
+diff --git a/content/browser/renderer_host/render_frame_host_impl.cc b/content/browser/renderer_host/render_frame_host_impl.cc
+index 8901234..hijklmn 100644
+--- a/content/browser/renderer_host/render_frame_host_impl.cc
++++ b/content/browser/renderer_host/render_frame_host_impl.cc
+@@ -1000,6 +1000,20 @@ void RenderFrameHostImpl::CreateNewWindow(
+   // Check permissions
+   ...
+   
++  // QUANTUM PATCH: Inject fingerprint script on page load
++  // This ensures fingerprint is applied before any JS executes
++  const char* fingerprint_injection = R"(
++    (function() {
++      // Get fingerprint from session storage
++      const fp = JSON.parse(sessionStorage.getItem('quantum_fingerprint') || '{}');
++      
++      // Override navigator properties
++      if (fp.hardwareConcurrency) {
++        Object.defineProperty(navigator, 'hardwareConcurrency', {
++          get: () => fp.hardwareConcurrency
++        });
++      }
++      
++      if (fp.deviceMemory) {
++        Object.defineProperty(navigator, 'deviceMemory', {
++          get: () => fp.deviceMemory
++        });
++      }
++      
++      if (fp.platform) {
++        Object.defineProperty(navigator, 'platform', {
++          get: () => fp.platform
++        });
++      }
++    })();
++  )";
++  
++  ExecuteJavaScript(
++    base::UTF8ToUTF16(fingerprint_injection),
++    base::NullCallback()
++  );
++  
+   delegate_->CreateNewWindow(this, params, std::move(callback));
+ }

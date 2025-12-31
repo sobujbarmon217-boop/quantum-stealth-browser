@@ -1,0 +1,52 @@
+diff --git a/chrome/app/theme/chromium/BRANDING b/chrome/app/theme/chromium/BRANDING
+index 1234567..abcdefg 100644
+--- a/chrome/app/theme/chromium/BRANDING
++++ b/chrome/app/theme/chromium/BRANDING
+@@ -1,5 +1,5 @@
+-COMPANY_FULLNAME=The Chromium Authors
+-COMPANY_SHORTNAME=Chromium Authors
+-PRODUCT_FULLNAME=Chromium
+-PRODUCT_SHORTNAME=Chromium
+-COPYRIGHT=Copyright 2023 The Chromium Authors
++COMPANY_FULLNAME=Quantum Stealth Team
++COMPANY_SHORTNAME=Quantum
++PRODUCT_FULLNAME=Quantum Stealth Browser
++PRODUCT_SHORTNAME=Quantum
++COPYRIGHT=Copyright 2025 Quantum Stealth Team
+ 
+diff --git a/chrome/browser/ui/browser_window.cc b/chrome/browser/ui/browser_window.cc
+index 2345678..bcdefgh 100644
+--- a/chrome/browser/ui/browser_window.cc
++++ b/chrome/browser/ui/browser_window.cc
+@@ -100,7 +100,7 @@ std::u16string BrowserWindow::FormatTitleForDisplay(
+   
+   if (title.empty())
+-    title = u"Chromium";
++    title = u"Quantum Stealth";
+   
+   return title;
+ }
+@@ -150,7 +150,7 @@ void BrowserWindow::SetWindowTitle(const std::u16string& title) {
+   // Use custom window title
+   std::u16string window_title = title;
+   if (window_title.empty()) {
+-    window_title = u"Chromium";
++    window_title = u"Quantum Stealth";
+   }
+   native_window_->SetTitle(window_title);
+ }
+
+diff --git a/chrome/common/chrome_constants.h b/chrome/common/chrome_constants.h
+index 3456789..cdefghi 100644
+--- a/chrome/common/chrome_constants.h
++++ b/chrome/common/chrome_constants.h
+@@ -10,8 +10,8 @@
+ namespace chrome {
+ 
+ // Product name
+-extern const char kChromeVersion[];
+-extern const char kProductName[];
++extern const char kQuantumVersion[];
++extern const char kProductName[] = "Quantum Stealth";
+ 
+ }  // namespace chrome

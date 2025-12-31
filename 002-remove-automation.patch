@@ -1,0 +1,52 @@
+diff --git a/chrome/renderer/chrome_content_renderer_client.cc b/chrome/renderer/chrome_content_renderer_client.cc
+index 4567890..defghij 100644
+--- a/chrome/renderer/chrome_content_renderer_client.cc
++++ b/chrome/renderer/chrome_content_renderer_client.cc
+@@ -500,8 +500,10 @@ void ChromeContentRendererClient::RenderFrameCreated(
+   
+   // Configure automation settings
+   blink::WebView* web_view = render_frame->GetWebView();
+   if (web_view) {
+-    web_view->GetSettings()->SetAutomationControlled(true);
++    // QUANTUM PATCH: Hide automation flag
++    // This prevents detection via navigator.webdriver
++    web_view->GetSettings()->SetAutomationControlled(false);
+   }
+ }
+ 
+@@ -600,7 +602,9 @@ void ChromeContentRendererClient::DidCreateScriptContext(
+   // Inject automation markers
+   v8::Local<v8::Context> context = frame->MainWorldScriptContext();
+   v8::Context::Scope context_scope(context);
+-  context->Global()->Set(
++  
++  // QUANTUM PATCH: Don't inject __webdriver_script_fn
++  /*context->Global()->Set(
+       context,
+       v8::String::NewFromUtf8(isolate, "__webdriver_script_fn").ToLocalChecked(),
+       v8::Function::New(context, nullptr).ToLocalChecked()
+-  );
++  );*/
+ }
+
+diff --git a/third_party/blink/renderer/core/frame/navigator.cc b/third_party/blink/renderer/core/frame/navigator.cc
+index 5678901..efghijk 100644
+--- a/third_party/blink/renderer/core/frame/navigator.cc
++++ b/third_party/blink/renderer/core/frame/navigator.cc
+@@ -200,11 +200,14 @@ bool Navigator::cookieEnabled() const {
+ }
+ 
+ bool Navigator::webdriver() const {
++  // QUANTUM PATCH: Always return false for webdriver
++  // This is the most important anti-detection measure
++  return false;
++  
++  /* Original code:
+   if (!GetFrame())
+     return false;
+   
+   return GetFrame()->GetSettings()->GetAutomationControlled();
++  */
+ }
+ 
+ String Navigator::productSub() const {
