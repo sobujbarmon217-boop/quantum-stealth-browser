@@ -1,0 +1,63 @@
+name: Build Quantum Stealth Browser
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: Build for Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 480
+    
+    steps:
+    - name: Free up disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        df -h
+        
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git python3 curl lsb-release sudo
+        
+    - name: Setup depot_tools
+      run: |
+        git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        echo "$PWD/depot_tools" >> $GITHUB_PATH
+        
+    - name: Fetch Chromium source
+      run: |
+        mkdir chromium-build
+        cd chromium-build
+        fetch --no-history chromium
+        
+    - name: Apply patches
+      run: |
+        cd chromium-build/src
+        git config user.email "actions@github.com"
+        git config user.name "GitHub Actions"
+        git apply --ignore-whitespace ../../patches/001-branding.patch || echo "Patch failed"
+        
+    - name: Install build deps
+      run: |
+        cd chromium-build/src
+        echo "y" | ./build/install-build-deps.sh --no-prompt
+        gclient runhooks
+        
+    - name: Configure build
+      run: |
+        cd chromium-build/src
+        gn gen out/Release --args='is_official_build=true is_debug=false symbol_level=0'
+        
+    - name: Build Chrome
+      run: |
+        cd chromium-build/src
+        au<span class="cursor">█</span>
